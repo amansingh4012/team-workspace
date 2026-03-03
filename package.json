@@ -9,7 +9,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build:frontend": "cd frontend && npm run build",
-    "render:build": "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps && npm run build",
+    "render:build": "cd backend && npm install --production && cd ../frontend && npm install --legacy-peer-deps --include=dev && npm run build",
     "render:start": "cd backend && node src/server.js"
   },
   "devDependencies": {
