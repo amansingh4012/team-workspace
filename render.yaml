@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: team-workspace
+    runtime: node
+    plan: free
+    buildCommand: npm run render:build
+    startCommand: npm run render:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false          # you will paste your Neon connection string here
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a random secret
+      - key: DB_FORCE_SYNC
+        value: "false"
