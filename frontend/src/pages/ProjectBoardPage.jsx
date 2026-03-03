@@ -315,7 +315,11 @@ const ProjectBoardPage = () => {
 
   /* ── Task CRUD callbacks ───────────────────────────────────────── */
   const handleTaskCreated = (newTask) => {
-    setTasks((prev) => [...prev, newTask]);
+    // Dedup: the WS broadcast may have already added this task
+    setTasks((prev) => {
+      if (prev.some((t) => t.id === newTask.id)) return prev;
+      return [...prev, newTask];
+    });
   };
 
   const handleTaskUpdated = (updatedTask) => {
