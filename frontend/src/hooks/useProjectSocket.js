@@ -31,10 +31,13 @@ export default function useProjectSocket(projectId, callbacks = {}) {
     let wsUrl;
     if (wsBase) {
       wsUrl = wsBase;
+    } else if (window.location.protocol === 'https:') {
+      // Production: WSS on same host, standard port (443)
+      wsUrl = `wss://${window.location.host}`;
     } else {
+      // Local dev: ws on localhost with explicit port
       const wsPort = import.meta.env.VITE_WS_PORT || '5000';
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      wsUrl = `${protocol}://${window.location.hostname}:${wsPort}`;
+      wsUrl = `ws://${window.location.hostname}:${wsPort}`;
     }
 
     let ws;
