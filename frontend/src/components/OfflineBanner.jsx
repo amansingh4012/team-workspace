@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw, Wifi } from 'lucide-react';
 import { getQueuedMutations, clearQueue } from '../utils/offlineCache';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -7,12 +7,13 @@ import toast from 'react-hot-toast';
 /**
  * Thin banner that appears at the top of the viewport when the browser
  * is offline.  When the connection comes back it automatically replays
- * any queued mutations.
+ * any queued mutations, then refreshes data.
  */
 const OfflineBanner = () => {
   const [online, setOnline] = useState(navigator.onLine);
   const [replaying, setReplaying] = useState(false);
   const [queueLen, setQueueLen] = useState(0);
+  const [showReconnected, setShowReconnected] = useState(false);
 
   /* Listen for connectivity changes */
   useEffect(() => {
@@ -30,6 +31,11 @@ const OfflineBanner = () => {
   useEffect(() => {
     if (!online) {
       getQueuedMutations().then((q) => setQueueLen(q.length));
+      // Periodically update count while offline
+      const interval = setInterval(() => {
+        getQueuedMutations().then((q) => setQueueLen(q.length));
+      }, 3000);
+      return () => clearInterval(interval);
     }
   }, [online]);
 
@@ -63,20 +69,47 @@ const OfflineBanner = () => {
 
       if (succeeded > 0) {
         toast.success(`Synced ${succeeded} offline change${succeeded > 1 ? 's' : ''}`);
+        // Brief delay then reload for fresh data
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        // Show reconnected banner briefly
+        setShowReconnected(true);
+        setTimeout(() => setShowReconnected(false), 2500);
       }
     };
 
-    replay();
+    replay().then(() => {
+      // If no queue was present, still show a brief "back online" note
+      getQueuedMutations().then((q) => {
+        if (q.length === 0 && !replaying) {
+          setShowReconnected(true);
+          setTimeout(() => setShowReconnected(false), 2500);
+        }
+      });
+    });
   }, [online]);
 
-  if (online && !replaying) return null;
+  if (online && !replaying && !showReconnected) return null;
 
   return (
-    <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium bg-amber-600 text-white shadow-lg animate-slide-down">
-      {replaying ? (
+    <div
+      className={`fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 py-2 px-4 text-sm font-medium shadow-lg animate-slide-down ${
+        showReconnected
+          ? 'bg-emerald-600 text-white'
+          : replaying
+          ? 'bg-blue-600 text-white'
+          : 'bg-amber-600 text-white'
+      }`}
+    >
+      {showReconnected ? (
+        <>
+          <Wifi className="w-4 h-4" />
+          Back online
+        </>
+      ) : replaying ? (
         <>
           <RefreshCw className="w-4 h-4 animate-spin" />
-          Syncing offline changes…
+          Syncing {queueLen} offline change{queueLen !== 1 ? 's' : ''}…
         </>
       ) : (
         <>

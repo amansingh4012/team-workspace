@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const rooms = new Map();
 
 let wss;
+let pingInterval;
 
 /**
  * Initialise the WebSocket server on an existing HTTP server.
@@ -23,6 +24,11 @@ function init(server) {
   wss.on('connection', (ws) => {
     ws._projectId = null; // will be set after join
     ws._userId = null;
+    ws.isAlive = true;
+
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
 
     ws.on('message', (raw) => {
       try {
@@ -30,8 +36,10 @@ function init(server) {
 
         if (msg.type === 'join') {
           handleJoin(ws, msg);
+        } else if (msg.type === 'ping') {
+          // Client-initiated heartbeat — respond immediately
+          ws.send(JSON.stringify({ type: 'pong' }));
         }
-        // Future: handle other client-initiated message types here
       } catch {
         ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
       }
@@ -46,7 +54,25 @@ function init(server) {
     });
   });
 
-  console.log('✓ WebSocket server initialised');
+  // ── Ping every client every 25 s — if no pong comes back, terminate.
+  // This keeps the connection alive on Render / Cloudflare / AWS ALB etc.
+  pingInterval = setInterval(() => {
+    if (!wss) return;
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        cleanup(ws);
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping(); // browser will auto-reply with pong frame
+    });
+  }, 25_000);
+
+  wss.on('close', () => {
+    clearInterval(pingInterval);
+  });
+
+  console.log('✓ WebSocket server initialised (ping/pong keepalive: 25s)');
 }
 
 /**

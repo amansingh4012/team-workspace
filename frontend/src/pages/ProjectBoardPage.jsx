@@ -112,7 +112,7 @@ const ProjectBoardPage = () => {
   /* ── Real-time via useProjectSocket ───────────────────────────────── */
   const statusLabels = { todo: 'To Do', inprogress: 'In Progress', done: 'Done' };
 
-  useProjectSocket(projectId, {
+  const { connected: wsConnected } = useProjectSocket(projectId, {
     onTaskUpdate: (payload) => {
       const isOther = payload.userId && payload.userId !== user?.id;
 
@@ -361,7 +361,15 @@ const ProjectBoardPage = () => {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-gray-100">{project?.title}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-100">{project?.title}</h1>
+                <span
+                  title={wsConnected ? 'Real-time connected' : 'Reconnecting…'}
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    wsConnected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-gray-500 animate-pulse'
+                  }`}
+                />
+              </div>
               {project?.description && (
                 <p className="text-sm text-gray-500 mt-0.5 line-clamp-1 max-w-xl">
                   {project.description}
