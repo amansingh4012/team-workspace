@@ -72,6 +72,10 @@ export default function useProjectSocket(projectId, callbacks = {}) {
             cbRef.current.onActivity?.(msg.payload);
             break;
 
+          case 'MEMBER_UPDATE':
+            cbRef.current.onMemberUpdate?.(msg.payload);
+            break;
+
           case 'error':
             console.warn('[ws] server error:', msg.message);
             break;

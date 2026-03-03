@@ -169,6 +169,27 @@ const ProjectBoardPage = () => {
     onActivity: (activity) => {
       setRealtimeActivities((prev) => [activity, ...prev.slice(0, 99)]);
     },
+    onMemberUpdate: (payload) => {
+      // Re-fetch the full project to get updated members list
+      getProject(projectId)
+        .then(({ data }) => setProject(data.project))
+        .catch(() => {});
+
+      const isOther = payload.userId && payload.userId !== user?.id;
+      if (isOther) {
+        if (payload.action === 'added') {
+          toast(`${payload.userName} added ${payload.member?.name || 'a member'}`, {
+            icon: '👤',
+            style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
+          });
+        } else if (payload.action === 'removed') {
+          toast(`${payload.userName} removed a member`, {
+            icon: '👤',
+            style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
+          });
+        }
+      }
+    },
   });
 
   /* ── Members list from project ─────────────────────────────────── */

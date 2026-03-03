@@ -194,16 +194,22 @@ exports.addMember = async (req, res, next) => {
       role: role || 'member',
     });
 
-    res.status(201).json({
-      success: true,
-      member: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        role: membership.role,
-      },
+    const memberData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      role: membership.role,
+    };
+
+    // Broadcast member added to all users in the project room
+    const { broadcast } = require('../utils/websocket');
+    broadcast(project.id, {
+      type: 'MEMBER_UPDATE',
+      payload: { action: 'added', member: memberData, userId: req.user.id, userName: req.user.name },
     });
+
+    res.status(201).json({ success: true, member: memberData });
   } catch (err) {
     next(err);
   }
@@ -248,6 +254,13 @@ exports.removeMember = async (req, res, next) => {
     }
 
     await membership.destroy();
+
+    // Broadcast member removed to all users in the project room
+    const { broadcast } = require('../utils/websocket');
+    broadcast(projectId, {
+      type: 'MEMBER_UPDATE',
+      payload: { action: 'removed', memberId: userId, userId: req.user.id, userName: req.user.name },
+    });
 
     res.json({ success: true, message: 'Member removed' });
   } catch (err) {

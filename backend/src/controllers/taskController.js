@@ -63,6 +63,11 @@ exports.createTask = async (req, res, next) => {
       order: order ?? 0,
     });
 
+    // Re-fetch with assignee included so broadcast has full data
+    const fullTask = await Task.findByPk(task.id, {
+      include: [{ association: 'assignee', attributes: ['id', 'name', 'avatar'] }],
+    });
+
     // Log activity
     const activity = await Activity.create({
       projectId,
@@ -75,10 +80,10 @@ exports.createTask = async (req, res, next) => {
     const actorInfo = { id: req.user.id, name: req.user.name, avatar: req.user.avatar };
 
     // Broadcast to project room
-    broadcast(projectId, { type: 'TASK_UPDATE', payload: { action: 'created', task, userId: req.user.id, userName: req.user.name } });
+    broadcast(projectId, { type: 'TASK_UPDATE', payload: { action: 'created', task: fullTask, userId: req.user.id, userName: req.user.name } });
     broadcast(projectId, { type: 'ACTIVITY', payload: { ...activity.toJSON(), user: actorInfo } });
 
-    res.status(201).json({ success: true, task });
+    res.status(201).json({ success: true, task: fullTask });
   } catch (err) {
     next(err);
   }
@@ -204,10 +209,15 @@ exports.updateTask = async (req, res, next) => {
       broadcast(req.params.projectId, { type: 'ACTIVITY', payload: { ...act.toJSON(), user: actorInfo } });
     }
 
-    // Broadcast task update
-    broadcast(req.params.projectId, { type: 'TASK_UPDATE', payload: { action: 'updated', task, userId: req.user.id, userName: req.user.name } });
+    // Re-fetch with assignee so broadcast has full data
+    const fullTask = await Task.findByPk(task.id, {
+      include: [{ association: 'assignee', attributes: ['id', 'name', 'avatar'] }],
+    });
 
-    res.json({ success: true, task });
+    // Broadcast task update
+    broadcast(req.params.projectId, { type: 'TASK_UPDATE', payload: { action: 'updated', task: fullTask, userId: req.user.id, userName: req.user.name } });
+
+    res.json({ success: true, task: fullTask });
   } catch (err) {
     next(err);
   }
