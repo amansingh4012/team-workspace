@@ -312,6 +312,11 @@ exports.uploadAttachment = async (req, res, next) => {
     const attachmentUrl = `/uploads/${req.file.filename}`;
     await task.update({ attachmentUrl });
 
+    // Re-fetch with assignee so broadcast has full data
+    const fullTask = await Task.findByPk(task.id, {
+      include: [{ association: 'assignee', attributes: ['id', 'name', 'avatar'] }],
+    });
+
     const activity = await Activity.create({
       projectId: req.params.projectId,
       userId: req.user.id,
@@ -322,10 +327,10 @@ exports.uploadAttachment = async (req, res, next) => {
 
     const actorInfo = { id: req.user.id, name: req.user.name, avatar: req.user.avatar };
 
-    broadcast(req.params.projectId, { type: 'TASK_UPDATE', payload: { action: 'updated', task, userId: req.user.id, userName: req.user.name } });
+    broadcast(req.params.projectId, { type: 'TASK_UPDATE', payload: { action: 'updated', task: fullTask, userId: req.user.id, userName: req.user.name } });
     broadcast(req.params.projectId, { type: 'ACTIVITY', payload: { ...activity.toJSON(), user: actorInfo } });
 
-    res.json({ success: true, task });
+    res.json({ success: true, task: fullTask });
   } catch (err) {
     next(err);
   }

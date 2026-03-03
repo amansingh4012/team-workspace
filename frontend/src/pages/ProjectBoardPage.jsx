@@ -131,14 +131,18 @@ const ProjectBoardPage = () => {
           break;
         }
         case 'updated': {
+          const merged = payload.task;
           setTasks((prev) =>
             prev.map((t) =>
-              t.id === payload.task?.id ? { ...t, ...payload.task } : t
+              t.id === merged?.id ? { ...t, ...merged } : t
             )
           );
+          // Keep the open TaskDetailModal in sync
+          setSelectedTask((prev) =>
+            prev && prev.id === merged?.id ? { ...prev, ...merged } : prev
+          );
           if (isOther) {
-            const t = payload.task;
-            toast(`${payload.userName || 'Someone'} updated '${t?.title}'`, {
+            toast(`${payload.userName || 'Someone'} updated '${merged?.title}'`, {
               icon: '✏️',
               style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
             });
@@ -147,6 +151,10 @@ const ProjectBoardPage = () => {
         }
         case 'deleted': {
           setTasks((prev) => prev.filter((t) => t.id !== payload.taskId));
+          // Close the modal if this task was open
+          setSelectedTask((prev) =>
+            prev && prev.id === payload.taskId ? null : prev
+          );
           if (isOther) {
             toast(`${payload.userName || 'Someone'} deleted '${payload.taskTitle || 'a task'}'`, {
               icon: '🗑️',
@@ -170,6 +178,16 @@ const ProjectBoardPage = () => {
       setRealtimeActivities((prev) => [activity, ...prev.slice(0, 99)]);
     },
     onMemberUpdate: (payload) => {
+      // If the current user was removed, redirect them out
+      if (payload.action === 'removed' && payload.memberId === user?.id) {
+        toast('You have been removed from this project', {
+          icon: '⚠️',
+          style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
+        });
+        navigate('/dashboard');
+        return;
+      }
+
       // Re-fetch the full project to get updated members list
       getProject(projectId)
         .then(({ data }) => setProject(data.project))
@@ -189,6 +207,27 @@ const ProjectBoardPage = () => {
           });
         }
       }
+    },
+    onProjectUpdate: (payload) => {
+      // Update project title/description in real-time
+      setProject((prev) =>
+        prev ? { ...prev, ...payload.project } : prev
+      );
+      const isOther = payload.userId && payload.userId !== user?.id;
+      if (isOther) {
+        toast(`${payload.userName || 'Someone'} updated project details`, {
+          icon: '📝',
+          style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
+        });
+      }
+    },
+    onProjectDelete: (payload) => {
+      toast(`This project has been deleted${payload.userName ? ` by ${payload.userName}` : ''}`, {
+        icon: '🗑️',
+        style: { background: '#1f2937', color: '#e5e7eb', border: '1px solid #374151' },
+        duration: 4000,
+      });
+      navigate('/dashboard');
     },
   });
 

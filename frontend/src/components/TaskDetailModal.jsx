@@ -39,6 +39,20 @@ const TaskDetailModal = ({ projectId, task, members = [], isAdmin = false, onClo
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Sync form with incoming prop changes (real-time WS updates) when user hasn't edited
+  useEffect(() => {
+    if (!dirty) {
+      setForm({
+        title: task.title || '',
+        description: task.description || '',
+        status: task.status || 'todo',
+        priority: task.priority || 'medium',
+        assigneeId: task.assigneeId || task.assignee?.id || '',
+        dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+      });
+    }
+  }, [task, dirty]);
+
   useEffect(() => {
     loadActivities();
   }, []);

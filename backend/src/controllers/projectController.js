@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { Project, ProjectMember, User, Task } = require('../models');
+const { broadcast } = require('../utils/websocket');
 
 /**
  * POST /api/projects
@@ -123,6 +124,12 @@ exports.updateProject = async (req, res, next) => {
     const { title, description } = req.body;
     await project.update({ title, description });
 
+    // Broadcast project update to all members in the room
+    broadcast(project.id, {
+      type: 'PROJECT_UPDATE',
+      payload: { project: { id: project.id, title: project.title, description: project.description }, userId: req.user.id, userName: req.user.name },
+    });
+
     res.json({ success: true, project });
   } catch (err) {
     next(err);
@@ -146,6 +153,12 @@ exports.deleteProject = async (req, res, next) => {
     if (!membership) {
       return res.status(403).json({ success: false, message: 'Only project admins can delete' });
     }
+
+    // Broadcast BEFORE destroying so clients still receive the event
+    broadcast(project.id, {
+      type: 'PROJECT_DELETE',
+      payload: { projectId: project.id, userId: req.user.id, userName: req.user.name },
+    });
 
     await project.destroy();
 
@@ -203,7 +216,6 @@ exports.addMember = async (req, res, next) => {
     };
 
     // Broadcast member added to all users in the project room
-    const { broadcast } = require('../utils/websocket');
     broadcast(project.id, {
       type: 'MEMBER_UPDATE',
       payload: { action: 'added', member: memberData, userId: req.user.id, userName: req.user.name },
@@ -256,7 +268,6 @@ exports.removeMember = async (req, res, next) => {
     await membership.destroy();
 
     // Broadcast member removed to all users in the project room
-    const { broadcast } = require('../utils/websocket');
     broadcast(projectId, {
       type: 'MEMBER_UPDATE',
       payload: { action: 'removed', memberId: userId, userId: req.user.id, userName: req.user.name },
