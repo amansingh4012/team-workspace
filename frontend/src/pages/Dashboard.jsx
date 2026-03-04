@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProjects, createProject, getMyTasks } from '../api';
 import useAuthStore from '../store/authStore';
@@ -74,18 +74,49 @@ const Dashboard = () => {
   /* sidebar collapsed (mobile) */
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  /* ── Fetch on mount ── */
-  useEffect(() => {
+  /* ── Fetch helpers ── */
+  const fetchProjects = useCallback(() => {
     getProjects()
       .then(({ data }) => setProjects(data.projects))
       .catch(() => toast.error('Failed to load projects'))
       .finally(() => setLoadingProjects(false));
+  }, []);
 
+  const fetchMyTasks = useCallback(() => {
     getMyTasks()
       .then(({ data }) => setMyTasks(data.tasks))
       .catch(() => {})
       .finally(() => setLoadingTasks(false));
   }, []);
+
+  const refreshAll = useCallback(() => {
+    fetchProjects();
+    fetchMyTasks();
+  }, [fetchProjects, fetchMyTasks]);
+
+  /* ── Fetch on mount ── */
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
+
+  /* ── Re-fetch when tab regains focus (user switches back from board) ── */
+  useEffect(() => {
+    const onFocus = () => refreshAll();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshAll();
+    });
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [refreshAll]);
+
+  /* ── Light polling every 30 s so dashboard stays fresh ── */
+  useEffect(() => {
+    const id = setInterval(refreshAll, 30_000);
+    return () => clearInterval(id);
+  }, [refreshAll]);
 
   /* ── Derived stats ── */
   const stats = useMemo(() => {
