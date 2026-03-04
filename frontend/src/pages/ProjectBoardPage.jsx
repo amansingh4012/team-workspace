@@ -260,6 +260,17 @@ const ProjectBoardPage = () => {
     return grouped;
   }, [filteredTasks]);
 
+  /* ── Helper: can user move this task? ─────────────────────────── */
+  const canMoveTask = useCallback(
+    (task) => {
+      if (isAdmin) return true;
+      // Assignee can move their own task
+      if (task.assigneeId && task.assigneeId === user?.id) return true;
+      return false;
+    },
+    [isAdmin, user]
+  );
+
   /* ── Drag & Drop handler ───────────────────────────────────────── */
   const onDragEnd = useCallback(
     async (result) => {
@@ -270,6 +281,15 @@ const ProjectBoardPage = () => {
         destination.index === source.index
       )
         return;
+
+      // Check permission: only assignee or admin can change status
+      const movedTask = tasks.find((t) => t.id === draggableId);
+      if (movedTask && destination.droppableId !== source.droppableId) {
+        if (!canMoveTask(movedTask)) {
+          toast.error('Only the assigned member or project admin can move this task');
+          return;
+        }
+      }
 
       // Build new columns map (from current unfiltered tasks)
       const colMap = { todo: [], inprogress: [], done: [] };
@@ -310,7 +330,7 @@ const ProjectBoardPage = () => {
         fetchData();
       }
     },
-    [tasks, projectId, fetchData]
+    [tasks, projectId, fetchData, canMoveTask]
   );
 
   /* ── Task CRUD callbacks ───────────────────────────────────────── */
@@ -552,6 +572,7 @@ const ProjectBoardPage = () => {
                           key={task.id}
                           task={task}
                           index={index}
+                          isDragDisabled={!canMoveTask(task)}
                           onClick={(t) => setSelectedTask(t)}
                         />
                       ))}

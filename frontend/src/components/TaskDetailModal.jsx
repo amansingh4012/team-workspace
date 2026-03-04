@@ -23,6 +23,9 @@ const TaskDetailModal = ({ projectId, task, members = [], isAdmin = false, onClo
   const { user } = useAuthStore();
   const fileRef = useRef(null);
 
+  // Can this user change the task status?
+  const canChangeStatus = isAdmin || (task.assigneeId && task.assigneeId === user?.id);
+
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
@@ -177,18 +180,25 @@ const TaskDetailModal = ({ projectId, task, members = [], isAdmin = false, onClo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Status</label>
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm appearance-none"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {statusConfig[s].label}
-                  </option>
-                ))}
-              </select>
+              {canChangeStatus ? (
+                <select
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm appearance-none"
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {statusConfig[s].label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="px-3.5 py-2.5 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-400 text-sm">
+                  {statusConfig[form.status]?.label || form.status}
+                  <span className="block text-xs text-gray-500 mt-0.5 italic">Only the assignee or admin can change status</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Priority</label>

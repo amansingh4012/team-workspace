@@ -1,14 +1,14 @@
 import { Draggable } from 'react-beautiful-dnd';
 import { getInitials, priorityColors } from '../utils/helpers';
-import { Calendar, Paperclip } from 'lucide-react';
+import { Calendar, Paperclip, Lock } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 
-const TaskCard = ({ task, index, onClick }) => {
+const TaskCard = ({ task, index, onClick, isDragDisabled = false }) => {
   const dueDateObj = task.dueDate ? new Date(task.dueDate) : null;
   const overdue = dueDateObj && isPast(dueDateObj) && !isToday(dueDateObj) && task.status !== 'done';
 
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={task.id} index={index} isDragDisabled={isDragDisabled}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -19,7 +19,8 @@ const TaskCard = ({ task, index, onClick }) => {
             ${snapshot.isDragging
               ? 'border-indigo-500 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30 rotate-2 scale-[1.02]'
               : 'border-gray-700/60 hover:border-gray-600 hover:bg-gray-800'
-            }`}
+            }
+            ${isDragDisabled ? 'opacity-80' : ''}`}
         >
           {/* Title */}
           <h4 className="text-sm font-medium text-gray-100 leading-snug mb-2 line-clamp-2">
@@ -58,20 +59,30 @@ const TaskCard = ({ task, index, onClick }) => {
             )}
           </div>
 
-          {/* Footer: assignee */}
-          {task.assignee && (
-            <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-gray-700/40">
-              <div
-                className="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center text-[10px] font-semibold"
-                title={task.assignee.name}
-              >
-                {getInitials(task.assignee.name)}
-              </div>
-              <span className="text-[11px] text-gray-400 truncate">
-                {task.assignee.name}
-              </span>
-            </div>
-          )}
+          {/* Footer: assignee + lock indicator */}
+          <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-gray-700/40">
+            {task.assignee ? (
+              <>
+                <div
+                  className="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center text-[10px] font-semibold"
+                  title={task.assignee.name}
+                >
+                  {getInitials(task.assignee.name)}
+                </div>
+                <span className="text-[11px] text-gray-400 truncate">
+                  {task.assignee.name}
+                </span>
+              </>
+            ) : (
+              <span className="text-[11px] text-gray-500 italic">Unassigned</span>
+            )}
+            {isDragDisabled && (
+              <Lock
+                className="w-3 h-3 text-gray-500 ml-auto shrink-0"
+                title="Only the assignee or admin can move this task"
+              />
+            )}
+          </div>
         </div>
       )}
     </Draggable>

@@ -164,6 +164,18 @@ exports.updateTask = async (req, res, next) => {
       }
     }
 
+    // Only the assigned member or project admin can change task status
+    if (req.body.status && req.body.status !== task.status) {
+      const isAssignee = task.assigneeId && task.assigneeId === req.user.id;
+      const admin = await isProjectAdmin(req.user.id, req.params.projectId);
+      if (!isAssignee && !admin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the assigned member or project admin can change task status',
+        });
+      }
+    }
+
     const oldStatus = task.status;
     const oldAssigneeId = task.assigneeId;
 
@@ -271,6 +283,34 @@ exports.updateTaskOrder = async (req, res, next) => {
 
     if (!Array.isArray(tasks) || tasks.length === 0) {
       return res.status(400).json({ success: false, message: 'tasks array is required' });
+    }
+
+    // Check permission for tasks whose status is being changed
+    const tasksWithStatusChange = tasks.filter((t) => t.status);
+    if (tasksWithStatusChange.length > 0) {
+      const admin = await isProjectAdmin(req.user.id, req.params.projectId);
+      if (!admin) {
+        // For non-admins, verify they are assignee of each task that has a status change
+        const taskIds = tasksWithStatusChange.map((t) => t.id);
+        const dbTasks = await Task.findAll({
+          where: { id: taskIds, projectId: req.params.projectId },
+          attributes: ['id', 'status', 'assigneeId'],
+        });
+        const dbMap = Object.fromEntries(dbTasks.map((t) => [t.id, t]));
+
+        for (const t of tasksWithStatusChange) {
+          const dbTask = dbMap[t.id];
+          // Only enforce if the status is actually changing
+          if (dbTask && t.status !== dbTask.status) {
+            if (dbTask.assigneeId !== req.user.id) {
+              return res.status(403).json({
+                success: false,
+                message: 'Only the assigned member or project admin can change task status',
+              });
+            }
+          }
+        }
+      }
     }
 
     const promises = tasks.map((t) =>
